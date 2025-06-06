@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import '../widgets/input_field.dart';
 import '../widgets/custom_button.dart';
-import 'package:flutter_vision/flutter_vision.dart'; // Import flutter_vision
+// import 'package:flutter_vision/flutter_vision.dart'; // Tetap dikomentari jika OCR dimatikan sementara
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 
 class APARBarangJadiScreen extends StatefulWidget {
   @override
@@ -18,20 +20,23 @@ class _APARBarangJadiScreenState extends State<APARBarangJadiScreen> {
 
   String _ocrText = '';
   bool _isOCRRunning = false;
-  late final FlutterVision ocrEngine; // Deklarasikan ocrEngine
+  // late final FlutterVision ocrEngine; // Dihapus/dikomentari
+  final ImagePicker _picker = ImagePicker();
+  XFile? _pickedFile;
+
+  // Pindahkan definisi primaryBlue ke sini agar bisa diakses oleh semua metode
+  final Color primaryBlue = Color(0xFF2196F3); // Contoh biru, sesuaikan dengan logo TSA
 
   @override
   void initState() {
     super.initState();
-    ocrEngine = FlutterVision(); // Inisialisasi ocrEngine
-    initializeOCR();
+    // Inisialisasi OCR dikomentari/dihapus sesuai permintaan
+    // ocrEngine = FlutterVision();
+    // initializeOCR();
   }
 
   Future<void> initializeOCR() async {
-    // Inisialisasi OCR (periksa dokumentasi flutter_vision untuk detailnya!)
-    //  Anda mungkin perlu menentukan model Tesseract.
-    //  Contoh (mungkin perlu disesuaikan):
-    await ocrEngine.loadTesseract('assets/tessdata/eng.traineddata'); // Ganti dengan path yang benar
+    // Fungsi ini dikosongkan karena OCR dimatikan sementara
   }
 
   @override
@@ -42,7 +47,7 @@ class _APARBarangJadiScreenState extends State<APARBarangJadiScreen> {
     _tanggalKadaluarsaController.dispose();
     _satuanController.dispose();
     _kondisiBarangController.dispose();
-    ocrEngine.closeTesseract(); // Tutup ocrEngine
+    // ocrEngine.closeTesseract(); // Dihapus/dikomentari
     super.dispose();
   }
 
@@ -53,38 +58,58 @@ class _APARBarangJadiScreenState extends State<APARBarangJadiScreen> {
     });
 
     try {
-      final List<OcrText> ocrResults = await ocrEngine.ocr(
-        'assets/image.jpg', // Ganti dengan path gambar yang diambil
-        //  Contoh: Anda mungkin perlu menyimpan gambar yang diambil dari kamera dan memberinya path
-      );
+      final XFile? pickedFile = await _picker.pickImage(source: ImageSource.camera);
 
-      if (ocrResults.isNotEmpty) {
-        String extractedText = '';
-        for (OcrText result in ocrResults) {
-          extractedText += result.text + ' ';
+      if (pickedFile != null) {
+        _pickedFile = pickedFile;
+
+        String extractedText = 'OCR Disabled'; // Pesan sementara
+        // Logika OCR di sini akan diaktifkan kembali nanti
+        // final List<Map<String, dynamic>> ocrResultsRaw = await ocrEngine.tesseractOnImage(
+        //   path: _pickedFile!.path,
+        // );
+        // extractedText = '';
+        // for (var result in ocrResultsRaw) {
+        //   if (result.containsKey('text')) {
+        //     extractedText += result['text'] + ' ';
+        //   }
+        // }
+
+        if (extractedText.isNotEmpty) {
+          setState(() {
+            _ocrText = extractedText;
+            _parseOCRResult(extractedText);
+          });
+        } else {
+          setState(() {
+            _ocrText = 'No text found.';
+          });
         }
-        setState(() {
-          _ocrText = extractedText;
-          _parseOCRResult(extractedText);
-        });
       } else {
         setState(() {
-          _ocrText = 'No text found.';
+          _ocrText = 'No image selected.';
         });
       }
     } catch (e) {
       setState(() {
-        _ocrText = 'Error: $e';
+        _ocrText = 'Error during OCR: ${e.toString()}';
       });
+      print('Error during OCR: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Terjadi kesalahan saat OCR: ${e.toString()}')),
+        );
+      }
     } finally {
-      setState(() {
-        _isOCRRunning = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isOCRRunning = false;
+        });
+      }
     }
   }
 
   void _parseOCRResult(String text) {
-    //  Logika parsing yang sama seperti sebelumnya (sangat penting untuk disesuaikan)
     if (text.contains('GUNNEBO') && text.contains('POWDER')) {
       _namaBarangController.text = 'APAR GUNNEBO';
       _tipeBarangController.text = 'ABC-POWDER';
@@ -95,54 +120,198 @@ class _APARBarangJadiScreenState extends State<APARBarangJadiScreen> {
     if (beratMatch != null) {
       _beratController.text = beratMatch.group(1) ?? '';
     }
-
-    //  ... (parsing tanggal kadaluarsa, dll.)
   }
 
   @override
   Widget build(BuildContext context) {
+    // primaryBlue sudah didefinisikan di level kelas, jadi tidak perlu di sini lagi
     return Scaffold(
-      appBar: AppBar(
-        title: Text('APAR Barang Jadi'),
-      ),
+      backgroundColor: Colors.white,
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(24.0),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
-            Container(
-              height: 100,
-              width: 100,
-              color: Colors.grey[300],
+            Text(
+              'APAR Barang Jadi',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontFamily: 'Poppins',
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
             ),
+            SizedBox(height: 30),
+
+            Container(
+              height: 200,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(12.0),
+              ),
+              child: _pickedFile != null
+                  ? ClipRRect(
+                borderRadius: BorderRadius.circular(12.0),
+                child: Image.file(
+                  File(_pickedFile!.path),
+                  fit: BoxFit.cover,
+                ),
+              )
+                  : Center(
+                child: Text(
+                  'Ambil Gambar APAR',
+                  style: TextStyle(
+                    fontFamily: 'Poppins',
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ),
+            ),
+            SizedBox(height: 20),
+
             CustomButton(
               onPressed: _startOCR,
               text: _isOCRRunning ? 'Scanning...' : 'Ambil Gambar & Scan',
+              buttonColor: primaryBlue, // Gunakan primaryBlue yang sudah diakses
+              textColor: Colors.white,
             ),
-            Text('Hasil OCR: $_ocrText'),
-            SizedBox(height: 20),
-            InputField(labelText: 'Nama Barang', controller: _namaBarangController),
             SizedBox(height: 10),
-            InputField(labelText: 'Berat', controller: _beratController),
-            SizedBox(height: 10),
-            InputField(labelText: 'Tipe Barang', controller: _tipeBarangController),
-            SizedBox(height: 10),
-            InputField(labelText: 'Tanggal Kadaluarsa', controller: _tanggalKadaluarsaController),
-            SizedBox(height: 10),
-            InputField(labelText: 'Satuan', controller: _satuanController),
-            SizedBox(height: 10),
-            InputField(labelText: 'Kondisi Barang', controller: _kondisiBarangController),
-            SizedBox(height: 20),
+            Text('Hasil OCR: $_ocrText', style: TextStyle(fontFamily: 'Poppins', fontStyle: FontStyle.italic)),
+            SizedBox(height: 30),
+
+            _buildInputField(
+              labelText: 'Nama Barang',
+              controller: _namaBarangController,
+              primaryBlue: primaryBlue,
+              icon: Icons.label_outline,
+            ),
+            SizedBox(height: 16),
+            _buildInputField(
+              labelText: 'Berat',
+              controller: _beratController,
+              primaryBlue: primaryBlue,
+              icon: Icons.scale_outlined,
+            ),
+            SizedBox(height: 16),
+            _buildInputField(
+              labelText: 'Tipe Barang',
+              controller: _tipeBarangController,
+              primaryBlue: primaryBlue,
+              icon: Icons.category_outlined,
+            ),
+            SizedBox(height: 16),
+            _buildInputField(
+              labelText: 'Tanggal Kadaluarsa',
+              controller: _tanggalKadaluarsaController,
+              primaryBlue: primaryBlue,
+              icon: Icons.calendar_today_outlined,
+              isDateField: true,
+            ),
+            SizedBox(height: 16),
+            _buildInputField(
+              labelText: 'Satuan',
+              controller: _satuanController,
+              primaryBlue: primaryBlue,
+              icon: Icons.straighten_outlined,
+            ),
+            SizedBox(height: 16),
+            _buildInputField(
+              labelText: 'Kondisi Barang',
+              controller: _kondisiBarangController,
+              primaryBlue: primaryBlue,
+              icon: Icons.health_and_safety_outlined,
+            ),
+            SizedBox(height: 30),
+
             CustomButton(
               onPressed: () {
-                // Logika simpan data
+                final namaBarang = _namaBarangController.text;
+                final berat = _beratController.text;
+                final tipeBarang = _tipeBarangController.text;
+                final tanggalKadaluarsa = _tanggalKadaluarsaController.text;
+                final satuan = _satuanController.text;
+                final kondisiBarang = _kondisiBarangController.text;
+
+                print('Data yang disimpan: Nama Barang: $namaBarang, Berat: $berat, Tipe: $tipeBarang, Tgl Kadaluarsa: $tanggalKadaluarsa, Satuan: $satuan, Kondisi: $kondisiBarang');
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Data berhasil disimpan (simulasi)!')),
+                );
               },
               text: 'Simpan Data',
+              buttonColor: primaryBlue,
+              textColor: Colors.white,
             ),
           ],
         ),
       ),
     );
+  }
+
+  Widget _buildInputField({
+    required String labelText,
+    required TextEditingController controller,
+    required Color primaryBlue,
+    required IconData icon,
+    bool isDateField = false,
+  }) {
+    return TextField(
+      controller: controller,
+      readOnly: isDateField,
+      onTap: isDateField ? () => _selectDate(context, controller) : null,
+      decoration: InputDecoration(
+        labelText: labelText,
+        prefixIcon: Icon(icon, color: primaryBlue),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8.0),
+          borderSide: BorderSide(color: primaryBlue),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8.0),
+          borderSide: BorderSide(color: primaryBlue.withOpacity(0.5)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8.0),
+          borderSide: BorderSide(color: primaryBlue, width: 2.0),
+        ),
+        labelStyle: TextStyle(fontFamily: 'Poppins', color: primaryBlue),
+        hintStyle: TextStyle(fontFamily: 'Poppins'),
+      ),
+      style: TextStyle(fontFamily: 'Poppins'),
+      keyboardType: isDateField ? TextInputType.datetime : TextInputType.text,
+    );
+  }
+
+  Future<void> _selectDate(BuildContext context, TextEditingController controller) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2101),
+      builder: (context, child) {
+        return Theme(
+          data: ThemeData.light().copyWith(
+            colorScheme: ColorScheme.light(
+              primary: primaryBlue, // Mengakses primaryBlue dari _APARBarangJadiScreenState
+              onPrimary: Colors.white,
+              onSurface: Colors.black,
+            ),
+            textButtonTheme: TextButtonThemeData(
+              style: TextButton.styleFrom(
+                foregroundColor: primaryBlue, // Mengakses primaryBlue
+              ),
+            ),
+            textTheme: TextTheme(
+              bodyMedium: TextStyle(fontFamily: 'Poppins'),
+              labelLarge: TextStyle(fontFamily: 'Poppins'),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null && picked != DateTime.now()) {
+      controller.text = "${picked.day}/${picked.month}/${picked.year}";
+    }
   }
 }
